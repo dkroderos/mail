@@ -28,8 +28,8 @@ public class ApplicationService(
         }
 
         logger.LogInformation("Reading credentials...");
-        var credentialsPath = configurationSettings.OAuthClientCredentialsPath;
-        _googleOAuthClientCredentials = await oAuthClientCredentialsReader.ReadCredentialsAsync(credentialsPath);
+        // var credentialsPath = configurationSettings.OAuthClientCredentialsPath;
+        // _googleOAuthClientCredentials = await oAuthClientCredentialsReader.ReadCredentialsAsync(credentialsPath);
 
         // TODO: Validate credentials
         // TODO: Validate database connection

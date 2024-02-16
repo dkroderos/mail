@@ -1,0 +1,9 @@
+﻿services:
+  merrmail:
+    image: merrmail
+    build:
+      context: .
+      dockerfile: src/Presentation/Dockerfile
+    volumes:
+      - ./sample.env:/.env
+      - ./secrets:/secrets
