@@ -9,7 +9,7 @@ namespace Merrsoft.MerrMail.Application.Services;
 public class ApplicationService(
     IOptions<ApplicationOptions> _options,
     IEmailApiService emailApiService,
-    IConfigurationReader configurationReader,
+    // IConfigurationReader configurationReader,
     ILogger<ApplicationService> logger,
     IOAuthClientCredentialsReader oAuthClientCredentialsReader)
     : IApplicationService
@@ -20,7 +20,7 @@ public class ApplicationService(
     public async Task<bool> CanStartAsync()
     {
         logger.LogInformation("Starting validation...");
-        configurationReader.ReadConfiguration();
+        // configurationReader.ReadConfiguration();
 
         if (!File.Exists(_options.OAuthClientCredentialsPath))
         {
