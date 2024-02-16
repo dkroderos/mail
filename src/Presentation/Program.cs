@@ -21,23 +21,47 @@ try
     Log.Information("Starting Merr Mail");
     Log.Information("Configuring Services");
 
-    var builder = Host.CreateDefaultBuilder(args)
-        .ConfigureServices((_, services) =>
-        {
-            services.AddHostedService<MerrMailWorker>();
+    var builder = Host.CreateApplicationBuilder(args);
+    builder.Services.AddSerilog();
+    builder.Services.AddHostedService<MerrMailWorker>();
 
-            services.AddSingleton<HttpClient>();
-            services.AddSingleton<IConfigurationSettings, EnvironmentVariables>();
+    builder.Services.AddHttpClient();
+    builder.Services.AddSingleton<IConfigurationSettings, EnvironmentVariables>();
 
-            services.AddSingleton<IApplicationService, ApplicationService>();
-            services.AddSingleton<IEmailApiService, GmailApiService>();
-            services.AddSingleton<IConfigurationReader, EnvConfigurationReader>();
-            services.AddSingleton<IOAuthClientCredentialsReader, GoogleOAuthClientCredentialsReader>();
-        })
-        .UseSerilog();
+    builder.Services.AddSingleton<IApplicationService, ApplicationService>();
+    builder.Services.AddSingleton<IEmailApiService, GmailApiService>();
+    // builder.Services.AddSingleton<IConfigurationReader, EnvConfigurationReader>();
+    // builder.Services.AddOptions<ApplicationOptions>();
+    builder.Services.AddSingleton<IOAuthClientCredentialsReader, GoogleOAuthClientCredentialsReader>();
+    
+    builder.Services
+        .AddOptions<ApplicationOptions>()
+        .BindConfiguration("")
+        .ValidateDataAnnotations() // <== this if for the [Required]
+        .ValidateOnStart();
+    
+    // builder
+    //     .Services
+    //     .AddOptions<ApplicationOptions>()
+    //     .BindConfiguration("");
+    
+    // builder
+    //     .Services
+    //     .AddOptions<ApplicationOptions>()
+    //     .BindConfiguration("")
+    //     .Validate(options => options.HostAddress != null, "put a clear message here")
+    //     .Validate(..... same per field)
+    //     .ValidateOnStartup()
+    //     ;
+    
+    // builder.Services
+    //     .AddOptions<EnvironmentVariables>()
+    //     .BindConfiguration("")
+    //     .ValidateDataAnnotations() // <== this if for the [Required]
+    //     .ValidateOnStart();
 
     var host = builder.Build();
-
+    
     host.Run();
 }
 catch (Exception ex)

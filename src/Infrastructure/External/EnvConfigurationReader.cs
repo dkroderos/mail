@@ -1,12 +1,13 @@
 using Merrsoft.MerrMail.Application.Contracts;
 using Merrsoft.MerrMail.Domain.Contracts;
+using Merrsoft.MerrMail.Domain.Models;
 using Microsoft.Extensions.Logging;
 
 namespace Merrsoft.MerrMail.Infrastructure.External;
 
 public class EnvConfigurationReader(
     ILogger<EnvConfigurationReader> logger,
-    IConfigurationSettings configurationSettings) : IConfigurationReader
+    ApplicationOptions configurationSettings) : IConfigurationReader
 {
     public void ReadConfiguration()
     {

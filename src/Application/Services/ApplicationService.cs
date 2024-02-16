@@ -2,11 +2,12 @@ using Merrsoft.MerrMail.Application.Contracts;
 using Merrsoft.MerrMail.Domain.Contracts;
 using Merrsoft.MerrMail.Domain.Models;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace Merrsoft.MerrMail.Application.Services;
 
 public class ApplicationService(
-    IConfigurationSettings configurationSettings,
+    IOptions<ApplicationOptions> _options,
     IEmailApiService emailApiService,
     IConfigurationReader configurationReader,
     ILogger<ApplicationService> logger,
@@ -14,22 +15,23 @@ public class ApplicationService(
     : IApplicationService
 {
     private GoogleOAuthClientCredentials? _googleOAuthClientCredentials;
+    private readonly ApplicationOptions _options = _options.Value;
 
     public async Task<bool> CanStartAsync()
     {
         logger.LogInformation("Starting validation...");
         configurationReader.ReadConfiguration();
 
-        if (!File.Exists(configurationSettings.OAuthClientCredentialsPath))
+        if (!File.Exists(_options.OAuthClientCredentialsPath))
         {
             logger.LogCritical("OAuth Client Credentials Path does not exists!");
 
             return false;
         }
 
-        logger.LogInformation("Reading credentials...");
-        var credentialsPath = configurationSettings.OAuthClientCredentialsPath;
-        _googleOAuthClientCredentials = await oAuthClientCredentialsReader.ReadCredentialsAsync(credentialsPath);
+        // logger.LogInformation("Reading credentials...");
+        // var credentialsPath = configurationSettings.OAuthClientCredentialsPath;
+        // _googleOAuthClientCredentials = await oAuthClientCredentialsReader.ReadCredentialsAsync(credentialsPath);
 
         // TODO: Validate credentials
         // TODO: Validate database connection
@@ -39,7 +41,6 @@ public class ApplicationService(
 
     public async Task RunAsync()
     {
-        
         var emails = emailApiService.GetUnreadEmails();
 
         if (emails is [])
