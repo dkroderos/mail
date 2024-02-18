@@ -26,7 +26,7 @@ try
     builder.Services.AddHostedService<MerrMailWorker>();
 
     builder.Services.AddHttpClient();
-    builder.Services.AddSingleton<IConfigurationSettings, EnvironmentVariables>();
+    // builder.Services.AddSingleton<IConfigurationSettings, EnvironmentVariables>();
 
     builder.Services.AddSingleton<IApplicationService, ApplicationService>();
     builder.Services.AddSingleton<IEmailApiService, GmailApiService>();
