@@ -36,7 +36,7 @@ public class MerrMailWorker(
                 // emailApiService.MarkAsRead(email.MessageId);
                 // await emailApiService.Reply(email.From, "Hi", email.MessageId);
                 emailApiService.LabelThread(email.ThreadId, "MerrMail: High Priority");
-                emailApiService.RemoveThreadFromInbox(email.ThreadId, "MerrMail: High Priority");
+                // emailApiService.RemoveThreadFromInbox(email.ThreadId, "MerrMail: High Priority");
             }
 
             // TODO: Check if an email is a concern
