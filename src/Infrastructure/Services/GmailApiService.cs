@@ -93,11 +93,15 @@ public class GmailApiService(
         var emails = new List<FirstEmailOnThreadDto>();
 
         var userId = _emailApiOptions.HostAddress;
-        
-        var threadsRequest = _gmailService!.Users.Threads.List(userId);
-        threadsRequest.LabelIds = "INBOX";
-        threadsRequest.IncludeSpamTrash = false;
-        var threadsResponse = threadsRequest.Execute();
+
+        // var threadsRequest = _gmailService!.Users.Threads.List(userId);
+        // threadsRequest.LabelIds = "INBOX";
+        // threadsRequest.IncludeSpamTrash = false;
+        // var threadsResponse = threadsRequest.Execute();
+        var threadsResponse = GetThreads();
+
+        if (threadsResponse?.Threads is null)
+            return [];
 
         foreach (var thread in threadsResponse.Threads)
         {
@@ -128,6 +132,25 @@ public class GmailApiService(
         }
 
         return emails;
+    }
+
+    private ListThreadsResponse? GetThreads()
+    {
+        try
+        {
+            var userId = _emailApiOptions.HostAddress;
+
+            var threadsRequest = _gmailService!.Users.Threads.List(userId);
+            threadsRequest.LabelIds = "INBOX";
+            threadsRequest.IncludeSpamTrash = false;
+            var threadsResponse = threadsRequest.Execute();
+
+            return threadsResponse;
+        }
+        catch (NullReferenceException)
+        {
+            return null;
+        }
     }
 
     public void LabelThread(string threadId, string labelName)
