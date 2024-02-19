@@ -19,17 +19,68 @@ public class GmailApiService(
 {
     private readonly EmailApiOptions _emailApiOptions = emailApiOptions.Value;
     private GmailService? _gmailService;
+    private bool _hasCreatedLabels = false;
 
     private async void InitializeAsync()
     {
         _gmailService ??= await GmailApiHelper.GetGmailService(
             _emailApiOptions.OAuthClientCredentialsFilePath,
             _emailApiOptions.AccessTokenDirectoryPath);
+
+        if (_hasCreatedLabels) return;
+
+        CreateLabel("MerrMail: High Priority"); // Red with white text
+        CreateLabel("MerrMail: Low Priority"); // Green with black text
+        _hasCreatedLabels = true;
+    }
+
+    private void CreateLabel(string name)
+    {
+        var labelsRequest = _gmailService?.Users.Labels.List(_emailApiOptions.HostAddress);
+        var labelsResponse = labelsRequest?.Execute();
+
+        if (labelsResponse?.Labels?.Any(label => label.Name == name) is true) return;
+
+        string backgroundColor, textColor;
+
+        switch (name)
+        {
+            case "MerrMail: High Priority":
+                backgroundColor = "#fb4c2f"; // Red
+                textColor = "#ffffff"; // White
+                break;
+            case "MerrMail: Low Priority":
+                backgroundColor = "#16a766"; // Green
+                textColor = "#ffffff"; // White
+                break;
+            default:
+                backgroundColor = "#000000"; // Black (default)
+                textColor = "#ffffff"; // White (default)
+                break;
+        }
+
+        var label = new Label
+        {
+            Name = name,
+            Color = new LabelColor
+            {
+                BackgroundColor = backgroundColor,
+                TextColor = textColor
+            }
+        };
+
+        var createLabelRequest = _gmailService?.Users.Labels.Create(label, _emailApiOptions.HostAddress);
+        var createdLabel = createLabelRequest?.Execute();
+
+        if (createdLabel != null)
+            logger.LogInformation(
+                "Label created: {labelName}, Label ID: {labelId}, BackgroundColor: {backgroundColor}, TextColor: {textColor}",
+                createdLabel.Name, createdLabel.Id, backgroundColor, textColor);
     }
 
     public FirstEmailOnThreadDto GetFirstEmailOnThread(string hostAddress)
     {
-        var request = _gmailService!.Users.Threads.List("me");
+        var request = _gmailService!.Users.Threads.List(_emailApiOptions.HostAddress);
         var response = request.Execute();
 
         throw new NotImplementedException();
@@ -41,12 +92,13 @@ public class GmailApiService(
 
         var emails = new List<FirstEmailOnThreadDto>();
 
-        var threadsRequest = _gmailService!.Users.Threads.List("me");
+        var threadsRequest = _gmailService!.Users.Threads.List(_emailApiOptions.HostAddress);
         var threadsResponse = threadsRequest.Execute();
 
         foreach (var thread in threadsResponse.Threads)
         {
-            var threadDetailsResponse = _gmailService!.Users.Threads.Get("me", thread.Id).Execute();
+            var threadDetailsResponse =
+                _gmailService!.Users.Threads.Get(_emailApiOptions.HostAddress, thread.Id).Execute();
 
             if (threadDetailsResponse?.Messages?.Any() != true)
             {
@@ -55,7 +107,7 @@ public class GmailApiService(
             }
 
             var firstMessage = threadDetailsResponse.Messages.First();
-            var firstEmail = _gmailService!.Users.Messages.Get("me", firstMessage.Id).Execute();
+            var firstEmail = _gmailService!.Users.Messages.Get(_emailApiOptions.HostAddress, firstMessage.Id).Execute();
 
             if (firstEmail == null)
             {
