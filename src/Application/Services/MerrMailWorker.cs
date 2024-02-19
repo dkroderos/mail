@@ -35,8 +35,10 @@ public class MerrMailWorker(
             {
                 // emailApiService.MarkAsRead(email.MessageId);
                 // await emailApiService.Reply(email.From, "Hi", email.MessageId);
-                emailApiService.LabelThread(email.ThreadId, "MerrMail: High Priority");
-                // emailApiService.RemoveThreadFromInbox(email.ThreadId, "MerrMail: High Priority");
+                var random = new Random();
+                emailApiService.LabelThread(email.ThreadId,
+                    random.Next(2) == 0 ? "MerrMail: High Priority" : "MerrMail: Low Priority");
+                emailApiService.RemoveThreadFromInbox(email.ThreadId);
             }
 
             // TODO: Check if an email is a concern
@@ -45,7 +47,7 @@ public class MerrMailWorker(
             // TODO: Reply to email
 
             await Task.Delay(1000, stoppingToken);
-            await StopAsync(stoppingToken); // <== Comment this when you want to test the loop
+            // await StopAsync(stoppingToken); // <== Comment this when you want to test the loop
         }
     }
 

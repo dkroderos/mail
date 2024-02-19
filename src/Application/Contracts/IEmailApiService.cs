@@ -9,5 +9,5 @@ public interface IEmailApiService
     void MarkAsRead(string messageId);
     List<FirstEmailOnThreadDto> GetFirstEmailOnThreads();
     void LabelThread(string threadId, string labelName);
-    void RemoveThreadFromInbox(string threadId, string labelName);
+    public void RemoveThreadFromInbox(string threadId);
 }

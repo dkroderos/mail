@@ -92,13 +92,16 @@ public class GmailApiService(
 
         var emails = new List<FirstEmailOnThreadDto>();
 
-        var threadsRequest = _gmailService!.Users.Threads.List(_emailApiOptions.HostAddress);
+        var userId = _emailApiOptions.HostAddress;
+        
+        var threadsRequest = _gmailService!.Users.Threads.List(userId);
+        threadsRequest.LabelIds = "INBOX";
+        threadsRequest.IncludeSpamTrash = false;
         var threadsResponse = threadsRequest.Execute();
 
         foreach (var thread in threadsResponse.Threads)
         {
-            var threadDetailsResponse =
-                _gmailService!.Users.Threads.Get(_emailApiOptions.HostAddress, thread.Id).Execute();
+            var threadDetailsResponse = _gmailService!.Users.Threads.Get(userId, thread.Id).Execute();
 
             if (threadDetailsResponse?.Messages?.Any() != true)
             {
@@ -107,7 +110,7 @@ public class GmailApiService(
             }
 
             var firstMessage = threadDetailsResponse.Messages.First();
-            var firstEmail = _gmailService!.Users.Messages.Get(_emailApiOptions.HostAddress, firstMessage.Id).Execute();
+            var firstEmail = _gmailService!.Users.Messages.Get(userId, firstMessage.Id).Execute();
 
             if (firstEmail == null)
             {
@@ -128,55 +131,60 @@ public class GmailApiService(
     }
 
     public void LabelThread(string threadId, string labelName)
-{
-    InitializeAsync();
-
-    var userId = _emailApiOptions.HostAddress;
-
-    var threadDetailsRequest = _gmailService!.Users.Threads.Get(userId, threadId);
-    var threadDetailsResponse = threadDetailsRequest.Execute();
-
-    if (threadDetailsResponse?.Messages?.Any() is not true)
     {
-        logger.LogWarning("Thread ID {threadId} has no messages or failed to retrieve details.", threadId);
-        return;
-    }
+        InitializeAsync();
 
-    // Check if the thread already has "MerrMail: High Priority" or "MerrMail: Low Priority" label
-    if (ThreadHasHighOrLowPriorityLabel(threadDetailsResponse))
-    {
-        logger.LogWarning("Thread ID {threadId} already has 'MerrMail: High Priority' or 'MerrMail: Low Priority' label. Skipping labeling.", threadId);
-        return;
-    }
+        var userId = _emailApiOptions.HostAddress;
 
-    var labelExists = LabelExists(userId, labelName);
-    if (!labelExists)
-    {
-        logger.LogWarning("Label '{labelName}' does not exist. Skipping labeling of the thread '{threadId}'.", labelName, threadId);
-        return;
-    }
+        var threadDetailsRequest = _gmailService!.Users.Threads.Get(userId, threadId);
+        var threadDetailsResponse = threadDetailsRequest.Execute();
 
-    // Get the label ID for the specified label name
-    var labelId = GetLabelId(userId, labelName);
-    if (string.IsNullOrEmpty(labelId))
-    {
-        logger.LogError("Failed to retrieve label ID for label '{labelName}'. Skipping labeling of the thread '{threadId}'.", labelName, threadId);
-        return;
-    }
+        if (threadDetailsResponse?.Messages?.Any() is not true)
+        {
+            logger.LogWarning("Thread ID {threadId} has no messages or failed to retrieve details.", threadId);
+            return;
+        }
 
-    // Apply the label to the thread
-    var modifyThreadRequest = new ModifyThreadRequest { AddLabelIds = new List<string> { labelId } };
-    var modifyThreadResponse = _gmailService?.Users.Threads.Modify(modifyThreadRequest, userId, threadId).Execute();
+        // Check if the thread already has "MerrMail: High Priority" or "MerrMail: Low Priority" label
+        if (ThreadHasHighOrLowPriorityLabel(threadDetailsResponse))
+        {
+            logger.LogWarning(
+                "Thread ID {threadId} already has 'MerrMail: High Priority' or 'MerrMail: Low Priority' label. Skipping labeling.",
+                threadId);
+            return;
+        }
 
-    if (modifyThreadResponse != null)
-    {
-        logger.LogInformation("Thread '{threadId}' labeled with '{labelName}'.", threadId, labelName);
+        var labelExists = LabelExists(userId, labelName);
+        if (!labelExists)
+        {
+            logger.LogWarning("Label '{labelName}' does not exist. Skipping labeling of the thread '{threadId}'.",
+                labelName, threadId);
+            return;
+        }
+
+        // Get the label ID for the specified label name
+        var labelId = GetLabelId(userId, labelName);
+        if (string.IsNullOrEmpty(labelId))
+        {
+            logger.LogError(
+                "Failed to retrieve label ID for label '{labelName}'. Skipping labeling of the thread '{threadId}'.",
+                labelName, threadId);
+            return;
+        }
+
+        // Apply the label to the thread
+        var modifyThreadRequest = new ModifyThreadRequest { AddLabelIds = new List<string> { labelId } };
+        var modifyThreadResponse = _gmailService?.Users.Threads.Modify(modifyThreadRequest, userId, threadId).Execute();
+
+        if (modifyThreadResponse != null)
+        {
+            logger.LogInformation("Thread '{threadId}' labeled with '{labelName}'.", threadId, labelName);
+        }
+        else
+        {
+            logger.LogError("Failed to label thread '{threadId}' with '{labelName}'.", threadId, labelName);
+        }
     }
-    else
-    {
-        logger.LogError("Failed to label thread '{threadId}' with '{labelName}'.", threadId, labelName);
-    }
-}
 
     private bool ThreadHasHighOrLowPriorityLabel(Thread thread)
     {
@@ -186,7 +194,7 @@ public class GmailApiService(
                 label == GetLabelId(_emailApiOptions.HostAddress, "MerrMail: High Priority") ||
                 label == GetLabelId(_emailApiOptions.HostAddress, "MerrMail: Low Priority")) == true) == true;
     }
-    
+
     private bool LabelExists(string userId, string labelName)
     {
         try
@@ -223,33 +231,16 @@ public class GmailApiService(
             return null;
         }
     }
-    
-    public void RemoveThreadFromInbox(string threadId, string labelName)
+
+    public void RemoveThreadFromInbox(string threadId)
     {
         InitializeAsync();
 
         var userId = _emailApiOptions.HostAddress;
 
-        // Check if the label exists
-        var labelExists = LabelExists(userId, labelName);
-        if (!labelExists)
-        {
-            logger.LogWarning("Label '{labelName}' does not exist. Skipping removal of thread '{threadId}' from Inbox.", labelName, threadId);
-            return;
-        }
-
-        // Get the label ID for the specified label name
-        var labelId = GetLabelId(userId, labelName);
-        if (string.IsNullOrEmpty(labelId))
-        {
-            logger.LogError("Failed to retrieve label ID for label '{labelName}'. Skipping removal of thread '{threadId}' from Inbox.", labelName, threadId);
-            return;
-        }
-
         // Modify the thread to remove it from the Inbox
         var modifyThreadRequest = new ModifyThreadRequest
         {
-            AddLabelIds = new List<string> { labelId },
             RemoveLabelIds = new List<string> { "INBOX" } // Remove from Inbox
         };
 
@@ -257,11 +248,11 @@ public class GmailApiService(
 
         if (modifyThreadResponse != null)
         {
-            logger.LogInformation("Thread '{threadId}' removed from Inbox and labeled with '{labelName}'.", threadId, labelName);
+            logger.LogInformation("Thread '{threadId}' removed from Inbox.", threadId);
         }
         else
         {
-            logger.LogError("Failed to remove thread '{threadId}' from Inbox and label with '{labelName}'.", threadId, labelName);
+            logger.LogError("Failed to remove thread '{threadId}' from Inbox.", threadId);
         }
     }
 
