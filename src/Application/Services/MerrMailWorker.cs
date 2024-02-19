@@ -1,3 +1,4 @@
+using System.Security.Cryptography;
 using Merrsoft.MerrMail.Application.Contracts;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -36,8 +37,9 @@ public class MerrMailWorker(
                 // emailApiService.MarkAsRead(email.MessageId);
                 // await emailApiService.Reply(email.From, "Hi", email.MessageId);
                 var random = new Random();
-                emailApiService.LabelThread(email.ThreadId,
-                    random.Next(2) == 0 ? "MerrMail: High Priority" : "MerrMail: Low Priority");
+                var chosen = random.Next(2) == 0 ? "MerrMail: High Priority" : "MerrMail: Low Priority";
+                emailApiService.ReplyToThread(email.ThreadId, email.Sender, "Eto na po rereplyan na");
+                emailApiService.LabelThread(email.ThreadId, chosen);
                 emailApiService.RemoveThreadFromInbox(email.ThreadId);
             }
 

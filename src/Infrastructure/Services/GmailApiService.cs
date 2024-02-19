@@ -1,3 +1,4 @@
+using System.Text;
 using Google.Apis.Gmail.v1;
 using Google.Apis.Gmail.v1.Data;
 using Merrsoft.MerrMail.Application.Contracts;
@@ -139,12 +140,12 @@ public class GmailApiService(
         try
         {
             var userId = _emailApiOptions.HostAddress;
-
+    
             var threadsRequest = _gmailService!.Users.Threads.List(userId);
             threadsRequest.LabelIds = "INBOX";
             threadsRequest.IncludeSpamTrash = false;
             var threadsResponse = threadsRequest.Execute();
-
+    
             return threadsResponse;
         }
         catch (NullReferenceException)
@@ -152,6 +153,38 @@ public class GmailApiService(
             return null;
         }
     }
+    // private ListThreadsResponse? GetThreads()
+    // {
+    //     try
+    //     {
+    //         var userId = _emailApiOptions.HostAddress;
+    //
+    //         // Exclude threads with specific labels (e.g., "MerrMail: High Priority" or "MerrMail: Low Priority")
+    //         var excludeLabels = new List<string> { "MerrMail: High Priority", "MerrMail: Low Priority" };
+    //
+    //         // Get label IDs for exclusion
+    //         var excludeLabelIds = excludeLabels.Select(label => GetLabelId(userId, label)).Where(id => id != null).ToList();
+    //
+    //         var threadsRequest = _gmailService!.Users.Threads.List(userId);
+    //         threadsRequest.LabelIds = "INBOX";
+    //
+    //         // Exclude threads with specific labels
+    //         if (excludeLabelIds.Any())
+    //         {
+    //             threadsRequest.Q = $"-label:{string.Join(" -label:", excludeLabelIds)}";
+    //         }
+    //
+    //         threadsRequest.IncludeSpamTrash = false;
+    //
+    //         var threadsResponse = threadsRequest.Execute();
+    //
+    //         return threadsResponse;
+    //     }
+    //     catch (NullReferenceException)
+    //     {
+    //         return null;
+    //     }
+    // }
 
     public void LabelThread(string threadId, string labelName)
     {
@@ -243,7 +276,7 @@ public class GmailApiService(
             // Retrieve the list of labels for the user
             var labelsRequest = _gmailService?.Users.Labels.List(userId);
             var labelsResponse = labelsRequest?.Execute();
-
+    
             // Find the label with the specified name and return its ID
             var label = labelsResponse?.Labels?.FirstOrDefault(l => l.Name == labelName);
             return label?.Id;
@@ -254,6 +287,7 @@ public class GmailApiService(
             return null;
         }
     }
+    
 
     public void RemoveThreadFromInbox(string threadId)
     {
@@ -349,6 +383,53 @@ public class GmailApiService(
         }
 
         return emails;
+    }
+    
+    public void ReplyToThread(string threadId, string to, string body)
+    {
+        InitializeAsync();
+
+        try
+        {
+            // Get the latest message in the thread
+            var threadDetailsRequest = _gmailService!.Users.Threads.Get(_emailApiOptions.HostAddress, threadId);
+            var threadDetailsResponse = threadDetailsRequest.Execute();
+
+            if (threadDetailsResponse?.Messages == null || !threadDetailsResponse.Messages.Any())
+            {
+                logger.LogWarning("Thread ID {threadId} has no messages or failed to retrieve details.", threadId);
+                return;
+            }
+
+            var latestMessage = threadDetailsResponse.Messages.First();
+            var originalSubject = latestMessage.Payload.Headers?.FirstOrDefault(h => h.Name == "Subject")?.Value;
+
+            // Create the reply message
+            var replyMessage = new Message
+            {
+                ThreadId = threadId,
+                LabelIds = new List<string> { "INBOX" }, // Assuming you want to move the reply to the INBOX
+                Payload = new MessagePart
+                {
+                    Headers = new List<MessagePartHeader>
+                    {
+                        new MessagePartHeader { Name = "To", Value = to },
+                        new MessagePartHeader { Name = "Subject", Value = originalSubject },
+                    },
+                    Body = new MessagePartBody { Data = Convert.ToBase64String(Encoding.UTF8.GetBytes(body)) }
+                }
+            };
+
+            // Send the reply message
+            var sendRequest = _gmailService.Users.Messages.Send(replyMessage, _emailApiOptions.HostAddress);
+            sendRequest.Execute();
+
+            logger.LogInformation("Replied to thread {threadId} with subject '{originalSubject}'", threadId, originalSubject);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError("Error while replying to thread: {error}", ex.Message);
+        }
     }
 
     // public async Task Reply(string to, string body, string messageId)

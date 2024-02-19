@@ -10,4 +10,5 @@ public interface IEmailApiService
     List<FirstEmailOnThreadDto> GetFirstEmailOnThreads();
     void LabelThread(string threadId, string labelName);
     public void RemoveThreadFromInbox(string threadId);
+    public void ReplyToThread(string threadId, string to, string body);
 }
