@@ -1,4 +1,3 @@
-using System.Text;
 using Google.Apis.Gmail.v1;
 using Google.Apis.Gmail.v1.Data;
 using Merrsoft.MerrMail.Application.Contracts;
@@ -19,7 +18,7 @@ public class GmailApiService(
 {
     private readonly EmailApiOptions _emailApiOptions = emailApiOptions.Value;
     private GmailService? _gmailService;
-    private bool _hasCreatedLabels = false;
+    private bool _hasCreatedLabels;
 
     private async void InitializeAsync()
     {
@@ -54,8 +53,8 @@ public class GmailApiService(
                 textColor = "#ffffff"; // White
                 break;
             default:
-                backgroundColor = "#000000"; // Black (default)
-                textColor = "#ffffff"; // White (default)
+                backgroundColor = "#000000"; // Black
+                textColor = "#ffffff"; // White
                 break;
         }
 
@@ -78,13 +77,13 @@ public class GmailApiService(
                 createdLabel.Name, createdLabel.Id, backgroundColor, textColor);
     }
 
-    public FirstEmailOnThreadDto GetFirstEmailOnThread(string hostAddress)
-    {
-        var request = _gmailService!.Users.Threads.List(_emailApiOptions.HostAddress);
-        var response = request.Execute();
-
-        throw new NotImplementedException();
-    }
+    // public FirstEmailOnThreadDto GetFirstEmailOnThread(string hostAddress)
+    // {
+    //     var request = _gmailService!.Users.Threads.List(_emailApiOptions.HostAddress);
+    //     var response = request.Execute();
+    //
+    //     throw new NotImplementedException();
+    // }
 
     public List<FirstEmailOnThreadDto> GetFirstEmailOnThreads()
     {
@@ -125,6 +124,87 @@ public class GmailApiService(
         }
 
         return emails;
+    }
+
+    public void LabelThread(string threadId, string labelName)
+    {
+        InitializeAsync();
+
+        var userId = _emailApiOptions.HostAddress;
+
+        var threadDetailsRequest = _gmailService!.Users.Threads.Get(userId, threadId);
+        var threadDetailsResponse = threadDetailsRequest.Execute();
+
+        if (threadDetailsResponse?.Messages?.Any() is not true)
+        {
+            logger.LogWarning("Thread ID {threadId} has no messages or failed to retrieve details.", threadId);
+            return;
+        }
+
+        var labelExists = LabelExists(userId, labelName);
+        if (!labelExists)
+        {
+            logger.LogWarning("Label '{labelName}' does not exist. Skipping labeling of the thread '{threadId}'.", labelName, threadId);
+            return;
+        }
+
+        // Get the label ID for the specified label name
+        var labelId = GetLabelId(userId, labelName);
+        if (string.IsNullOrEmpty(labelId))
+        {
+            logger.LogError("Failed to retrieve label ID for label '{labelName}'. Skipping labeling of the thread '{threadId}'.", labelName, threadId);
+            return;
+        }
+
+        // Apply the label to the thread
+        var modifyThreadRequest = new ModifyThreadRequest { AddLabelIds = new List<string> { labelId } };
+        var modifyThreadResponse = _gmailService?.Users.Threads.Modify(modifyThreadRequest, userId, threadId).Execute();
+
+        if (modifyThreadResponse != null)
+        {
+            logger.LogInformation("Thread '{threadId}' labeled with '{labelName}'.", threadId, labelName);
+        }
+        else
+        {
+            logger.LogError("Failed to label thread '{threadId}' with '{labelName}'.", threadId, labelName);
+        }
+    }
+    
+    private bool LabelExists(string userId, string labelName)
+    {
+        try
+        {
+            // Retrieve the list of labels for the user
+            var labelsRequest = _gmailService?.Users.Labels.List(userId);
+            var labelsResponse = labelsRequest?.Execute();
+
+            // Check if a label with the specified name already exists
+            return labelsResponse?.Labels?.Any(label => label.Name == labelName) == true;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError("Error checking if label exists: {error}", ex.Message);
+            return false;
+        }
+    }
+
+    private string GetLabelId(string userId, string labelName)
+    {
+        try
+        {
+            // Retrieve the list of labels for the user
+            var labelsRequest = _gmailService?.Users.Labels.List(userId);
+            var labelsResponse = labelsRequest?.Execute();
+
+            // Find the label with the specified name and return its ID
+            var label = labelsResponse?.Labels?.FirstOrDefault(l => l.Name == labelName);
+            return label?.Id;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError("Error getting label ID: {error}", ex.Message);
+            return null;
+        }
     }
 
     public List<Email> GetUnreadEmails()
@@ -199,35 +279,35 @@ public class GmailApiService(
         return emails;
     }
 
-    public async Task Reply(string to, string body, string messageId)
-    {
-        InitializeAsync();
-
-        var originalMessage = _gmailService!.Users.Messages.Get(_emailApiOptions.HostAddress, messageId).Execute();
-
-        var replyMessage = new Message();
-        var modifiedSubject = $"Re: {originalMessage.Payload.Headers.First(h => h.Name == "Subject").Value}";
-
-        var modifiedBody =
-            $"On {originalMessage.Payload.Headers.First(h => h.Name == "Date").Value}, " +
-            $"{originalMessage.Payload.Headers.First(h => h.Name == "From").Value} wrote:\n\n";
-        modifiedBody += body;
-
-        replyMessage.Payload = new MessagePart
-        {
-            Headers = new List<MessagePartHeader>
-            {
-                new() { Name = "To", Value = to },
-                new() { Name = "Subject", Value = modifiedSubject }
-            },
-            Body = new MessagePartBody { Data = Convert.ToBase64String(Encoding.UTF8.GetBytes(modifiedBody)) }
-        };
-
-        var replyRequest = _gmailService.Users.Messages.Send(replyMessage, _emailApiOptions.HostAddress);
-        await replyRequest.ExecuteAsync();
-
-        logger.LogInformation("Replied to email (Original Message Id: {originalMessageId})", messageId);
-    }
+    // public async Task Reply(string to, string body, string messageId)
+    // {
+    //     InitializeAsync();
+    //
+    //     var originalMessage = await _gmailService!.Users.Messages.Get(_emailApiOptions.HostAddress, messageId).ExecuteAsync();
+    //
+    //     var replyMessage = new Message();
+    //     var modifiedSubject = $"Re: {originalMessage.Payload.Headers.First(h => h.Name == "Subject").Value}";
+    //
+    //     var modifiedBody =
+    //         $"On {originalMessage.Payload.Headers.First(h => h.Name == "Date").Value}, " +
+    //         $"{originalMessage.Payload.Headers.First(h => h.Name == "From").Value} wrote:\n\n";
+    //     modifiedBody += body;
+    //
+    //     replyMessage.Payload = new MessagePart
+    //     {
+    //         Headers = new List<MessagePartHeader>
+    //         {
+    //             new() { Name = "To", Value = to },
+    //             new() { Name = "Subject", Value = modifiedSubject }
+    //         },
+    //         Body = new MessagePartBody { Data = Convert.ToBase64String(Encoding.UTF8.GetBytes(modifiedBody)) }
+    //     };
+    //
+    //     var replyRequest = _gmailService.Users.Messages.Send(replyMessage, _emailApiOptions.HostAddress);
+    //     await replyRequest.ExecuteAsync();
+    //
+    //     logger.LogInformation("Replied to email (Original Message Id: {originalMessageId})", messageId);
+    // }
 
     public void MarkAsRead(string messageId)
     {

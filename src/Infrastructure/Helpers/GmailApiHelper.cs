@@ -5,7 +5,7 @@ using Google.Apis.Util.Store;
 
 namespace Merrsoft.MerrMail.Infrastructure.Helpers;
 
-public static class GmailApiHelper
+internal static class GmailApiHelper
 {
     public static async Task<GmailService> GetGmailService(string credentialsPath, string accessTokenPath)
     {
