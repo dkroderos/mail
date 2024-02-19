@@ -1,4 +1,3 @@
-using System.Security.Cryptography;
 using Merrsoft.MerrMail.Application.Contracts;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
