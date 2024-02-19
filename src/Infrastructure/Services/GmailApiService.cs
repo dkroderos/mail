@@ -206,6 +206,47 @@ public class GmailApiService(
             return null;
         }
     }
+    
+    public void RemoveThreadFromInbox(string threadId, string labelName)
+    {
+        InitializeAsync();
+
+        var userId = _emailApiOptions.HostAddress;
+
+        // Check if the label exists
+        var labelExists = LabelExists(userId, labelName);
+        if (!labelExists)
+        {
+            logger.LogWarning("Label '{labelName}' does not exist. Skipping removal of thread '{threadId}' from Inbox.", labelName, threadId);
+            return;
+        }
+
+        // Get the label ID for the specified label name
+        var labelId = GetLabelId(userId, labelName);
+        if (string.IsNullOrEmpty(labelId))
+        {
+            logger.LogError("Failed to retrieve label ID for label '{labelName}'. Skipping removal of thread '{threadId}' from Inbox.", labelName, threadId);
+            return;
+        }
+
+        // Modify the thread to remove it from the Inbox
+        var modifyThreadRequest = new ModifyThreadRequest
+        {
+            AddLabelIds = new List<string> { labelId },
+            RemoveLabelIds = new List<string> { "INBOX" } // Remove from Inbox
+        };
+
+        var modifyThreadResponse = _gmailService?.Users.Threads.Modify(modifyThreadRequest, userId, threadId).Execute();
+
+        if (modifyThreadResponse != null)
+        {
+            logger.LogInformation("Thread '{threadId}' removed from Inbox and labeled with '{labelName}'.", threadId, labelName);
+        }
+        else
+        {
+            logger.LogError("Failed to remove thread '{threadId}' from Inbox and label with '{labelName}'.", threadId, labelName);
+        }
+    }
 
     public List<Email> GetUnreadEmails()
     {

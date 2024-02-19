@@ -8,5 +8,6 @@ public interface IEmailApiService
     // Task Reply(string to, string body, string messageId);
     void MarkAsRead(string messageId);
     List<FirstEmailOnThreadDto> GetFirstEmailOnThreads();
-    public void LabelThread(string threadId, string labelName);
+    void LabelThread(string threadId, string labelName);
+    void RemoveThreadFromInbox(string threadId, string labelName);
 }
