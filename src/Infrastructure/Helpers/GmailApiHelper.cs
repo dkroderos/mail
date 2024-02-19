@@ -7,16 +7,16 @@ namespace Merrsoft.MerrMail.Infrastructure.Helpers;
 
 public static class GmailApiHelper
 {
-    public static GmailService GetGmailService(string credentialsPath, string accessTokenPath)
+    public static async Task<GmailService> GetGmailService(string credentialsPath, string accessTokenPath)
     {
-        using var stream = new FileStream(credentialsPath, FileMode.Open, FileAccess.Read);
+        await using var stream = new FileStream(credentialsPath, FileMode.Open, FileAccess.Read);
 
-        var credential = GoogleWebAuthorizationBroker.AuthorizeAsync(
-            GoogleClientSecrets.FromStream(stream).Secrets,
+        var credential = await GoogleWebAuthorizationBroker.AuthorizeAsync(
+            (await GoogleClientSecrets.FromStreamAsync(stream)).Secrets,
             new[] { GmailService.Scope.GmailReadonly, GmailService.Scope.GmailModify },
             "user",
             CancellationToken.None,
-            new FileDataStore(accessTokenPath, true)).Result;
+            new FileDataStore(accessTokenPath, true));
 
         return new GmailService(new BaseClientService.Initializer
         {

@@ -1,3 +1,4 @@
+using System.Text;
 using Google.Apis.Gmail.v1;
 using Google.Apis.Gmail.v1.Data;
 using Merrsoft.MerrMail.Application.Contracts;
@@ -19,16 +20,64 @@ public class GmailApiService(
     private readonly EmailApiOptions _emailApiOptions = emailApiOptions.Value;
     private GmailService? _gmailService;
 
-    private void Initialize()
+    private async void InitializeAsync()
     {
-        _gmailService ??= GmailApiHelper.GetGmailService(
+        _gmailService ??= await GmailApiHelper.GetGmailService(
             _emailApiOptions.OAuthClientCredentialsFilePath,
             _emailApiOptions.AccessTokenDirectoryPath);
     }
 
+    public FirstEmailOnThreadDto GetFirstEmailOnThread(string hostAddress)
+    {
+        var request = _gmailService!.Users.Threads.List("me");
+        var response = request.Execute();
+
+        throw new NotImplementedException();
+    }
+
+    public List<FirstEmailOnThreadDto> GetFirstEmailOnThreads()
+    {
+        InitializeAsync();
+
+        var emails = new List<FirstEmailOnThreadDto>();
+
+        var threadsRequest = _gmailService!.Users.Threads.List("me");
+        var threadsResponse = threadsRequest.Execute();
+
+        foreach (var thread in threadsResponse.Threads)
+        {
+            var threadDetailsResponse = _gmailService!.Users.Threads.Get("me", thread.Id).Execute();
+
+            if (threadDetailsResponse?.Messages?.Any() != true)
+            {
+                logger.LogWarning("Thread ID {threadId} has no messages or failed to retrieve details.", thread.Id);
+                continue;
+            }
+
+            var firstMessage = threadDetailsResponse.Messages.First();
+            var firstEmail = _gmailService!.Users.Messages.Get("me", firstMessage.Id).Execute();
+
+            if (firstEmail == null)
+            {
+                logger.LogWarning("Failed to retrieve email for thread ID {threadId}. Message is null.", thread.Id);
+                continue;
+            }
+
+            var from = firstEmail.Payload.Headers?.FirstOrDefault(h => h.Name == "From")?.Value ?? "Unknown Sender";
+            var subject = firstEmail.Payload.Headers?.FirstOrDefault(h => h.Name == "Subject")?.Value ?? "No Subject";
+            var body = firstEmail.Snippet;
+
+            var email = new FirstEmailOnThreadDto(from, subject, body, thread.Id);
+            logger.LogInformation("Email found: {sender} | {body}", email.Sender, email.Body);
+            emails.Add(email);
+        }
+
+        return emails;
+    }
+
     public List<Email> GetUnreadEmails()
     {
-        Initialize();
+        InitializeAsync();
 
         var emails = new List<Email>();
 
@@ -91,22 +140,46 @@ public class GmailApiService(
             // TODO: Decode the body
             var email = new Email(from, to, body, mailDateTime, attachments, id);
             emails.Add(email);
-            
+
             logger.LogInformation("Email found, (Message Id: {emailId})", email.MessageId);
         }
 
         return emails;
     }
 
-    public Task Reply(string to)
+    public async Task Reply(string to, string body, string messageId)
     {
-        Initialize();
-        throw new NotImplementedException();
+        InitializeAsync();
+
+        var originalMessage = _gmailService!.Users.Messages.Get(_emailApiOptions.HostAddress, messageId).Execute();
+
+        var replyMessage = new Message();
+        var modifiedSubject = $"Re: {originalMessage.Payload.Headers.First(h => h.Name == "Subject").Value}";
+
+        var modifiedBody =
+            $"On {originalMessage.Payload.Headers.First(h => h.Name == "Date").Value}, " +
+            $"{originalMessage.Payload.Headers.First(h => h.Name == "From").Value} wrote:\n\n";
+        modifiedBody += body;
+
+        replyMessage.Payload = new MessagePart
+        {
+            Headers = new List<MessagePartHeader>
+            {
+                new() { Name = "To", Value = to },
+                new() { Name = "Subject", Value = modifiedSubject }
+            },
+            Body = new MessagePartBody { Data = Convert.ToBase64String(Encoding.UTF8.GetBytes(modifiedBody)) }
+        };
+
+        var replyRequest = _gmailService.Users.Messages.Send(replyMessage, _emailApiOptions.HostAddress);
+        await replyRequest.ExecuteAsync();
+
+        logger.LogInformation("Replied to email (Original Message Id: {originalMessageId})", messageId);
     }
 
     public void MarkAsRead(string messageId)
     {
-        Initialize();
+        InitializeAsync();
 
         var mods = new ModifyMessageRequest
         {

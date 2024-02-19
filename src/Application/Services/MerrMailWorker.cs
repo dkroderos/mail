@@ -16,7 +16,7 @@ public class MerrMailWorker(
 
         if (!await HasInternetAsync())
         {
-            logger.LogError("Connection Timeout! Unable to start Merr Mail Service!");
+            logger.LogCritical("Connection Timeout! Unable to start Merr Mail Service!");
             return;
         }
 
@@ -28,11 +28,13 @@ public class MerrMailWorker(
     {
         while (!stoppingToken.IsCancellationRequested)
         {
-            var emails = emailApiService.GetUnreadEmails();
+            // var emails = emailApiService.GetUnreadEmails();
+            var emails = emailApiService.GetFirstEmailOnThreads();
 
             foreach (var email in emails)
             {
                 // emailApiService.MarkAsRead(email.MessageId);
+                // await emailApiService.Reply(email.From, "Hi", email.MessageId);
             }
 
             // TODO: Check if an email is a concern
