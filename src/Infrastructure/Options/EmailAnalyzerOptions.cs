@@ -2,5 +2,5 @@
 
 public class EmailAnalyzerOptions
 {
-    public required float AcceptanceScore { get; init; }
+    public required float AcceptanceScore { get; set; }
 }

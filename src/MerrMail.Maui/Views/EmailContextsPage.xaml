@@ -1,9 +1,51 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8" ?>
 
-<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
-             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
-             x:Class="MerrMail.Maui.Views.EmailContextsPage">
+<ContentPage
+    x:Class="MerrMail.Maui.Views.EmailContextsPage"
+    x:DataType="viewmodels:EmailContextsViewModel"
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:models="clr-namespace:Merrsoft.MerrMail.Domain.Models;assembly=Domain"
+    xmlns:viewmodels="clr-namespace:MerrMail.Maui.ViewModels"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml">
     <ContentPage.Content>
-        
+        <Grid RowDefinitions="*,Auto">
+            <ScrollView>
+                <StackLayout>
+                    <CollectionView ItemsSource="{Binding EmailContexts}">
+                        <CollectionView.Header>
+                            <Grid ColumnDefinitions="*,*,*,*,*" Padding="10">
+                                <Label
+                                    Grid.Column="0"
+                                    HorizontalTextAlignment="Center"
+                                    Text="Subject" />
+                                <Label
+                                    Grid.Column="1"
+                                    HorizontalTextAlignment="Center"
+                                    Text="Response" />
+                            </Grid>
+                        </CollectionView.Header>
+                        <CollectionView.ItemTemplate>
+                            <DataTemplate x:DataType="models:EmailContext">
+                                <Frame Margin="2" Padding="5">
+                                    <Frame.GestureRecognizers>
+                                        <TapGestureRecognizer Command="{Binding}" />
+                                    </Frame.GestureRecognizers>
+                                </Frame>
+                                <Grid ColumnDefinitions="*,*,*,*,*" Padding="10">
+                                    <Label
+                                        Grid.Column="0"
+                                        HorizontalTextAlignment="Center"
+                                        Text="{Binding Subject}" />
+                                    <Label
+                                        Grid.Column="1"
+                                        HorizontalTextAlignment="Center"
+                                        Text="{Binding Response}" />
+                                </Grid>
+                            </DataTemplate>
+                        </CollectionView.ItemTemplate>
+                    </CollectionView>
+                </StackLayout>
+            </ScrollView>
+        </Grid>
     </ContentPage.Content>
 </ContentPage>
